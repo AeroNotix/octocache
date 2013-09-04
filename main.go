@@ -50,7 +50,10 @@ func CheckFilePathAgainstRules(directory string, message string) bool {
 }
 
 func BackupDirectory(fi FullFileInfo) error {
-	return fileutil.CopyDirectory(filepath.Join(*CacheDirectory, fi.Info.Name()), fi.Path)
+	return fileutil.CopyDirectory(
+		filepath.Join(*CacheDirectory, fi.Info.Name(), ".git"),
+		filepath.Join(fi.Path, ".git"),
+	)
 }
 
 func GenerateURLRewrite(finfo FullFileInfo, cache_dir string) (string, error) {
