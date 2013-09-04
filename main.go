@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 var BaseDirectory = flag.String("basedir", "", "The base directory which contains the git directories you want to cache.")
@@ -128,16 +129,22 @@ func main() {
 		return
 	}
 	config := make([]string, len(git_directories))
+	wg := sync.WaitGroup{}
 	for _, git_dir := range git_directories {
-		err = BackupDirectory(git_dir)
-		if err != nil {
-			log.Println(err)
-		}
+		go func() {
+			wg.Add(1)
+			err = BackupDirectory(git_dir)
+			if err != nil {
+				log.Println(err)
+			}
+			wg.Done()
+		}()
 		rewrite_rule, err := GenerateURLRewrite(git_dir, *CacheDirectory)
 		if err != nil {
 			log.Println(err)
 		}
 		config = append(config, rewrite_rule)
 	}
+	wg.Wait()
 	fmt.Println(strings.Join(config, "\n"))
 }
