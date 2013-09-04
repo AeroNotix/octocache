@@ -112,6 +112,28 @@ type FullFileInfo struct {
 	Info os.FileInfo
 }
 
+func CacheDirectories(git_directories []FullFileInfo) []string {
+	config := make([]string, len(git_directories))
+	wg := sync.WaitGroup{}
+	for _, git_dir := range git_directories {
+		go func() {
+			wg.Add(1)
+			err := BackupDirectory(git_dir)
+			if err != nil {
+				log.Println(err)
+			}
+			wg.Done()
+		}()
+		rewrite_rule, err := GenerateURLRewrite(git_dir, *CacheDirectory)
+		if err != nil {
+			log.Println(err)
+		}
+		config = append(config, rewrite_rule)
+	}
+	wg.Wait()
+	return config
+}
+
 func main() {
 	if !CheckFilePathAgainstRules(*BaseDirectory, "You must supply a search directory.") ||
 		!CheckFilePathAgainstRules(*CacheDirectory, "You must supply a cache directory.") {
@@ -128,23 +150,6 @@ func main() {
 		log.Println(err)
 		return
 	}
-	config := make([]string, len(git_directories))
-	wg := sync.WaitGroup{}
-	for _, git_dir := range git_directories {
-		go func() {
-			wg.Add(1)
-			err = BackupDirectory(git_dir)
-			if err != nil {
-				log.Println(err)
-			}
-			wg.Done()
-		}()
-		rewrite_rule, err := GenerateURLRewrite(git_dir, *CacheDirectory)
-		if err != nil {
-			log.Println(err)
-		}
-		config = append(config, rewrite_rule)
-	}
-	wg.Wait()
+	config := CacheDirectories(git_directories)
 	fmt.Println(strings.Join(config, "\n"))
 }
