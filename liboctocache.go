@@ -1,9 +1,8 @@
-package main
+package octocache
 
 import (
 	"bufio"
 	"bytes"
-	"flag"
 	"fmt"
 	"github.com/AeroNotix/fileutil"
 	"log"
@@ -14,8 +13,10 @@ import (
 	"sync"
 )
 
-var BaseDirectory = flag.String("basedir", "", "The base directory which contains the git directories you want to cache.")
-var CacheDirectory = flag.String("cache", "", "The directory which to cache git directories to.")
+type FullFileInfo struct {
+	Path string
+	Info os.FileInfo
+}
 
 // IsGitDir will return a boolean value indicating whether or not the
 // directory path is a git directory or not.
@@ -42,17 +43,19 @@ func IsGitDir(path string) bool {
 	return false
 }
 
-func CheckFilePathAgainstRules(directory string, message string) bool {
-	if directory == "" {
-		log.Printf("Argument Error: %s", message)
-		return false
-	}
-	return true
+func CollectGitDirectories(basedir string) ([]FullFileInfo, error) {
+	git_directories := []FullFileInfo{}
+	return git_directories, filepath.Walk(basedir, func(path string, info os.FileInfo, err error) error {
+		if IsGitDir(path) {
+			git_directories = append(git_directories, FullFileInfo{path, info})
+		}
+		return nil
+	})
 }
 
-func BackupDirectory(fi FullFileInfo) error {
+func BackupDirectory(fi FullFileInfo, cache_dir string) error {
 	return fileutil.CopyDirectory(
-		filepath.Join(*CacheDirectory, fi.Info.Name(), ".git"),
+		filepath.Join(cache_dir, fi.Info.Name(), ".git"),
 		filepath.Join(fi.Path, ".git"),
 	)
 }
@@ -77,7 +80,6 @@ func GenerateURLRewrite(finfo FullFileInfo, cache_dir string) (string, error) {
 	for git_branch_scanner.Scan() {
 		split_branch_line := strings.Split(git_branch_scanner.Text(), " ")
 		if len(split_branch_line) != 2 {
-			fmt.Println(split_branch_line, len(split_branch_line))
 			return "", fmt.Errorf(
 				"Malformed output when scanning git branch output:\n%s",
 				git_branch_scanner.Text(),
@@ -103,28 +105,19 @@ func GenerateURLRewrite(finfo FullFileInfo, cache_dir string) (string, error) {
 	return output.String(), nil
 }
 
-func init() {
-	flag.Parse()
-}
-
-type FullFileInfo struct {
-	Path string
-	Info os.FileInfo
-}
-
-func CacheDirectories(git_directories []FullFileInfo) []string {
+func CacheDirectories(git_directories []FullFileInfo, cache_dir string) []string {
 	config := make([]string, len(git_directories))
 	wg := sync.WaitGroup{}
 	for _, git_dir := range git_directories {
 		go func() {
 			wg.Add(1)
-			err := BackupDirectory(git_dir)
+			err := BackupDirectory(git_dir, cache_dir)
 			if err != nil {
 				log.Println(err)
 			}
 			wg.Done()
 		}()
-		rewrite_rule, err := GenerateURLRewrite(git_dir, *CacheDirectory)
+		rewrite_rule, err := GenerateURLRewrite(git_dir, cache_dir)
 		if err != nil {
 			log.Println(err)
 		}
@@ -132,24 +125,4 @@ func CacheDirectories(git_directories []FullFileInfo) []string {
 	}
 	wg.Wait()
 	return config
-}
-
-func main() {
-	if !CheckFilePathAgainstRules(*BaseDirectory, "You must supply a search directory.") ||
-		!CheckFilePathAgainstRules(*CacheDirectory, "You must supply a cache directory.") {
-		return
-	}
-	git_directories := []FullFileInfo{}
-	err := filepath.Walk(*BaseDirectory, func(path string, info os.FileInfo, err error) error {
-		if IsGitDir(path) {
-			git_directories = append(git_directories, FullFileInfo{path, info})
-		}
-		return nil
-	})
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	config := CacheDirectories(git_directories)
-	fmt.Println(strings.Join(config, "\n"))
 }
