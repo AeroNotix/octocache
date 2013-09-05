@@ -35,5 +35,5 @@ func main() {
 		return
 	}
 	config := octocache.CacheDirectories(git_directories, *CacheDirectory)
-	fmt.Println(strings.Join(config, "\n"))
+	fmt.Println(strings.Join(config, ""))
 }
