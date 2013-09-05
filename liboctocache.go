@@ -64,10 +64,10 @@ func GenerateURLRewrite(finfo FullFileInfo, cache_dir string) (string, error) {
 	oldwd, _ := os.Getwd()
 	os.Chdir(finfo.Path)
 	git_branches, err := exec.Command("git", "remote", "-v").Output()
+	os.Chdir(oldwd)
 	if err != nil {
 		return "", err
 	}
-	os.Chdir(oldwd)
 	git_branch_scanner := bufio.NewScanner(bytes.NewReader(git_branches))
 
 	// we use two because a single cloned repo will have two
