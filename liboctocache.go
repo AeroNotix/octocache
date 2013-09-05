@@ -101,7 +101,7 @@ func GenerateURLRewrite(finfo FullFileInfo, cache_dir string) (string, error) {
 	)
 	for key, _ := range branches {
 		output.WriteString(
-			fmt.Sprintf("insteadOf = %s\n", key),
+			fmt.Sprintf("insteadOf = %s\n\n", key),
 		)
 	}
 	return output.String(), nil
