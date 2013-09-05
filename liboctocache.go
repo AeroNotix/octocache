@@ -92,6 +92,9 @@ func GenerateURLRewrite(finfo FullFileInfo, cache_dir string) (string, error) {
 	//
 	// [url "/path/to/repo/"]
 	//     insteadOf = git@host:project.git
+	if len(branches) == 0 {
+		return "", nil
+	}
 	output := bytes.NewBuffer([]byte{})
 	cache_dir = filepath.Join(fileutil.MakeAbs(cache_dir), finfo.Info.Name())
 	output.WriteString(
@@ -120,8 +123,11 @@ func CacheDirectories(git_directories []FullFileInfo, cache_dir string) []string
 		rewrite_rule, err := GenerateURLRewrite(git_dir, cache_dir)
 		if err != nil {
 			log.Println(err)
+			continue
 		}
-		config = append(config, rewrite_rule)
+		if rewrite_rule != "" {
+			config = append(config, rewrite_rule)
+		}
 	}
 	wg.Wait()
 	return config
