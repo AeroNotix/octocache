@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 )
 
 type FullFileInfo struct {
@@ -110,16 +109,12 @@ func GenerateURLRewrite(finfo FullFileInfo, cache_dir string) (string, error) {
 
 func CacheDirectories(git_directories []FullFileInfo, cache_dir string) []string {
 	config := make([]string, len(git_directories))
-	wg := sync.WaitGroup{}
 	for _, git_dir := range git_directories {
-		go func() {
-			wg.Add(1)
-			err := BackupDirectory(git_dir, cache_dir)
-			if err != nil {
-				log.Println(err)
-			}
-			wg.Done()
-		}()
+		err := BackupDirectory(git_dir, cache_dir)
+		if err != nil {
+			log.Println(err)
+		}
+
 		rewrite_rule, err := GenerateURLRewrite(git_dir, cache_dir)
 		if err != nil {
 			log.Println(err)
@@ -129,6 +124,5 @@ func CacheDirectories(git_directories []FullFileInfo, cache_dir string) []string
 			config = append(config, rewrite_rule)
 		}
 	}
-	wg.Wait()
 	return config
 }
